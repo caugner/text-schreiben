@@ -1,0 +1,196 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Text schreiben</title>
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha384-nvAa0+6Qg9clwYCGGPpDQLVpLNn0fRaROjHqs13t4Ggj3Ez50XnGQqc/r8MhnRDZ" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+    <style type="text/css">
+        table.border {
+            border-collapse:collapse;
+        }
+        table.border td {
+            border:1px solid;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <h1>Text schreiben</h1>
+
+    <form class="form-horizontal">
+        <!-- Sprachauswahl -->
+        <div class="form-group">
+            <label for="lang">Sprache</label>
+            <select id="lang" class="form-control">
+                <option value="">keine Auswahl</option>
+                <option value="de">de - Deutsch</option>
+                <option value="en">en - English</option>
+                <option value="fr">fr - Français</option>
+            </select>
+        </div>
+
+        <!-- Zielauswahl -->
+        <div class="form-group">
+            <label for="goal">Wortziel</label>
+            <input type="number" id="goal" class="form-control" />
+        </div>
+
+        <!-- Fortschritt -->
+        <div class="form-group" id="progress-group">
+            <label for="progress">Fortschritt: <span id="progress-text">0</span>%</label>
+            <progress id="progress" class="form-control" value="0" max="100"></progress>
+        </div>
+
+        <!-- Text -->
+        <div class="form-group">
+            <label for="text">Text</label>
+            <textarea id="text" class="form-control" cols="50" rows="10"></textarea>
+        </div>
+
+        <!-- Wörter -->
+        <div class="form-group">
+            <label for="words">Wörter: <span id="count">0</span></label>
+            <div id="words" style="line-height:200%;opacity:0.5"></div>
+        </div>
+    </form>
+</div>
+
+<script type="text/javascript">
+    var LocalStorageSync = function(fieldNames) {
+        this.fieldNames = fieldNames;
+    };
+
+    LocalStorageSync.prototype.init = function() {
+        this.load();
+
+        this.fieldNames.forEach(function(fieldName) {
+            var $field = $('#' + fieldName);
+            var saveField = this.saveField;
+            $field.on('change keyup', function() {
+                saveField(fieldName);
+            });
+        }, this);
+    }
+
+    LocalStorageSync.prototype.reset = function() {
+        this.fieldNames.forEach(function(fieldName) {
+            localStorage.removeItem(fieldName);
+        }, this);
+    }
+
+    LocalStorageSync.prototype.save = function() {
+        var saveField = this.saveField;
+        this.fieldNames.forEach(function(fieldName) {
+            saveField(fieldName);
+        }, this);
+    }
+
+    LocalStorageSync.prototype.saveField = function(fieldName) {
+        var $field = $('#' + fieldName);
+        var value = $field.val();
+        localStorage.setItem(fieldName, value);
+    }
+
+    LocalStorageSync.prototype.load = function() {
+        this.fieldNames.forEach(function(fieldName) {
+            this.loadField(fieldName);
+        }, this);
+    }
+
+    LocalStorageSync.prototype.loadField = function(fieldName) {
+        var $field = $('#' + fieldName);
+        if ($field.val().trim().length == 0) {
+            var value = localStorage.getItem(fieldName)
+            $field.val(value);
+        }
+    }
+
+    function get_words(text) {
+        text = text.replace(/([0-9])[.,]([0-9])/g, '$1$2');
+        text = text.replace(/([0-9])[%]/g, '$1 %');
+        //text = text.replace(/([0-9])-([0-9])/g, '$1 $2');
+        //text = text.replace(/[,.?!’'\/–]/g, ' ');
+        text = text.replace(/[,.?!\/–]/g, ' ');
+        text = text.replace(/[ ]{2,}/g, ' ');
+        text = text.trim();
+        return (text == '' ? [] : text.split(' '));
+    }
+
+    function process() {
+        var $words = $('#words');
+
+        var $progress = $('#progress');
+        var $count = $('#count');
+
+        var text = $("#text").val();
+        var goal = $("#goal").val();
+
+        var words = get_words(text);
+        var count = words.length;
+        $count.html(count);
+
+        // Fortschritt anzeigen
+
+        if (!!goal && goal > 0) {
+            var progress = (goal > 0 ? Math.round(100 * count / goal) : 0);
+            $progress.val(progress).parent().show();
+            $('#progress-text').text(progress);
+        } else {
+            $progress.parent().hide();
+        }
+
+        // Wörter ausgeben
+
+        if (!$words.is(':visible')) {
+            return;
+        }
+
+        $words.html('');
+        var html = '';
+
+        for (var i = 1; i <= count; i++) {
+            var color;
+            if (i == goal) {
+                color = 'success';
+            } else if (i % 100 == 0) {
+                color = 'primary';
+            } else if (i % 10 == 0) {
+                color = 'info';
+            } else {
+                color = 'default';
+            }
+            html += '<span class="label label-' + color + '" title="' + i + '">' + words[i-1] + '</span> ';
+        }
+
+        $words.html(html);
+    }
+
+    function set_language() {
+        var lang = $('#lang').val();
+        var $text = $('#text');
+        if (!!lang) {
+            $text.attr('lang', lang);
+        } else {
+            $text.removeAttr('lang');
+        }
+    }
+
+    var sync = new LocalStorageSync(['lang', 'goal', 'text']);
+    sync.init();
+
+    $("#text,#goal").on('change keyup', process);
+    $("#lang").on('change', set_language);
+    $(function(){
+        process();
+    });
+
+    window.onbeforeunload = function(e) {
+        return 'Willst du wirklich gehen?';
+    };
+</script>
+
+</body></html>
